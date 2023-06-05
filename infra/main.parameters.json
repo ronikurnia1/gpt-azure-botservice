@@ -1,0 +1,42 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": {
+      "value": "${AZURE_ENV_NAME}"
+    },
+    "location": {
+      "value": "${AZURE_LOCATION}"
+    },
+    "principalId": {
+      "value": "${AZURE_PRINCIPAL_ID}"
+    },
+    "principalType": {
+      "value": "${AZURE_PRINCIPAL_TYPE=User}"
+    },
+    "resorceGroupName": {
+      "value": "${AZURE_RESOURCE_GROUP}"
+    },
+    "solutionName": {
+      "value": "smartbot"
+    },
+    "searchServiceResourceGroupName":{
+      "value": "${AZURE_SEARCH_RESOURCE_GROUP}"
+    },
+    "storageResourceGroupName": {
+      "value": "${AZURE_STORAGE_RESOURCE_GROUP}"
+    },
+    "openAiResourceGroupName": {
+      "value": "${AZURE_OPENAI_RESOURCE_GROUP}"
+    },
+    "openAiSkuName": {
+      "value": "S0"
+    },
+    "formRecognizerResourceGroupName": {
+      "value": "${AZURE_FORMRECOGNIZER_RESOURCE_GROUP}"
+    },
+    "tags": {
+      "value": "${AZURE_TAGS}"
+    }
+  }
+}

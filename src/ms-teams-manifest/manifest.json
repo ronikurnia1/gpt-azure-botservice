@@ -1,0 +1,55 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.16/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.16",
+  "version": "1.0.0",
+  "id": "3c0e1217-5f04-4940-b6f6-30cffeb395f8",
+  "packageName": "com.mycompany.smartbot",
+  "developer": {
+    "name": "SmartBot",
+    "websiteUrl": "https://www.mycompany.com/",
+    "privacyUrl": "https://www.mycompany.com/privacy",
+    "termsOfUseUrl": "https://www.mycompany.com/terms"
+  },
+  "icons": {
+    "outline": "icon-outline.png",
+    "color": "icon-color.png"
+  },
+  "name": {
+    "short": "SmartBot",
+    "full": "SmartBot"
+  },
+  "description": {
+    "short": "SmartBot for helping employees",
+    "full": "SmartBot for helping employees"
+  },
+  "accentColor": "#FFFFFF",
+  "bots": [
+    {
+      "botId": "3c0e1217-5f04-4940-b6f6-30cffeb395f8",
+      "scopes": [
+        "personal",
+        "groupchat",
+        "team"
+      ],
+      "isNotificationOnly": false,
+      "supportsCalling": false,
+      "supportsVideo": false,
+      "supportsFiles": false,
+      "commandLists": [
+        {
+          "scopes": [
+            "personal",
+            "groupchat",
+            "team"
+          ],
+          "commands": []
+        }
+      ]
+    }
+  ],
+  "permissions": [
+    "identity",
+    "messageTeamMembers"
+  ],
+  "validDomains": [ "*.ngrok.io" ]
+}

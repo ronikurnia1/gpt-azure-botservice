@@ -1,0 +1,31 @@
+{
+  "profiles": {
+    "IIS Express": {
+      "commandName": "IISExpress",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "GptBotApi": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "AZURE_CLIENT_ID": "ddaceaa3-484f-4a3b-9693-62fcc33cd2ff",
+        "AZURE_TENANT_ID": "a63bc49a-3c62-479a-93bb-4ab3c3a873d1",
+        "AZURE_CLIENT_SECRET": "SYi8Q~sPxjssAvtvnTl_d-CuSF4JaUOe_ipVhbd."
+      },
+      "applicationUrl": "https://localhost:3979;http://localhost:3978"
+    }
+  },
+  "$schema": "http://json.schemastore.org/launchsettings.json",
+  "iisSettings": {
+    "windowsAuthentication": false,
+    "anonymousAuthentication": true,
+    "iisExpress": {
+      "applicationUrl": "http://localhost:3978",
+      "sslPort": 0
+    }
+  }
+}
