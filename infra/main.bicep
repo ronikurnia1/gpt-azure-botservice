@@ -13,7 +13,7 @@ param location string
 param principalId string = ''
 param principalType string = 'User'
 
-param resorceGroupName string = 'demo-openai'
+param resourceGroupName string = 'demo-openai'
 param solutionName string = 'smartbot'
 
 param searchServiceResourceGroupName string = ''
@@ -40,7 +40,7 @@ var updatedTags = union(empty(tags) ? {} : base64ToJson(tags), baseTags)
 
 // Organize resources in a resource group
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' = {
-    name: resorceGroupName
+    name: resourceGroupName
     location: location
     tags: updatedTags
 }
