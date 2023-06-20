@@ -18,7 +18,7 @@
       "value": "${AZURE_RESOURCE_GROUP}"
     },
     "solutionName": {
-      "value": "smartbot"
+      "value": "${AZURE_SOLUTION_NAME}"
     },
     "searchServiceResourceGroupName":{
       "value": "${AZURE_SEARCH_RESOURCE_GROUP}"

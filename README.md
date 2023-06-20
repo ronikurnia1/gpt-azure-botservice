@@ -54,7 +54,10 @@ You can run this repo virtually by using GitHub Codespaces or VS Code Remote Con
 4. Run `azd auth login`
 5. Run `azd init --location eastus --subscription [00000000-0000-0000-0000-000000000000] --environment mybot --no-prompt`
     * For the target location, the regions that currently support the models used in this sample are **East US** or **South Central US**. For an up-to-date list of regions and models, check [here](https://learn.microsoft.com/en-us/azure/cognitive-services/openai/concepts/models)
-
+6. Open file `.\.azure\[your-env-name]\.env` and add the following lines:
+`AZURE_RESOURCE_GROUP="[your-resource-group-name]"
+AZURE_SOLUTION_NAME="[your-solution-name]"`
+    
 #### Starting from scratch:
 
 Execute the following command, if you don't have any pre-existing Azure services and want to start from a fresh deployment.
