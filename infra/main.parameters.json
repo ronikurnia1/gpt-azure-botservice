@@ -15,7 +15,7 @@
       "value": "${AZURE_PRINCIPAL_TYPE=User}"
     },
     "resourceGroupName": {
-      "value": "${AZURE_RESOURCE_GROUP}"
+      "value": "${AZURE_ENV_NAME}"
     },
     "solutionName": {
       "value": "${AZURE_SOLUTION_NAME}"
