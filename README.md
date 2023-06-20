@@ -50,7 +50,7 @@ You can run this repo virtually by using GitHub Codespaces or VS Code Remote Con
 
 
 1. Clone the source-code `git clone https://github.com/ronikurnia1/gpt-azure-botservice.git` 
-2. Run `cd .\gpt-azure-botservice.git`
+2. Run `cd .\gpt-azure-botservice`
 4. Run `azd auth login`
 5. Run `azd init --location eastus --subscription [00000000-0000-0000-0000-000000000000] --environment mybot --no-prompt`
     * For the target location, the regions that currently support the models used in this sample are **East US** or **South Central US**. For an up-to-date list of regions and models, check [here](https://learn.microsoft.com/en-us/azure/cognitive-services/openai/concepts/models)
