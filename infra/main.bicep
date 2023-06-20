@@ -13,7 +13,7 @@ param location string
 param principalId string = ''
 param principalType string = 'User'
 
-param resorceGroupName string
+param resorceGroupName string = 'demo-openai'
 param solutionName string = 'smartbot'
 
 param searchServiceResourceGroupName string = ''
