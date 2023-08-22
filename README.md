@@ -57,6 +57,8 @@ You can run this repo virtually by using GitHub Codespaces or VS Code Remote Con
 6. Open file `.\.azure\[your-env-name]\.env` and add the following line: 
    
 - `AZURE_SOLUTION_NAME="[your-solution-name]"`
+
+  Note: [your-solution-name] must not contain any special character or space
     
 #### Starting from scratch:
 
