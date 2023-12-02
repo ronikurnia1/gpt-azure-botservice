@@ -3,7 +3,7 @@
 public class ConversationData
 {
     public string ConversationId { get; set; } = string.Empty;
-    public List<ChatTurnData> ChatTurns { get; set; } = new List<ChatTurnData>();
+    public List<ChatTurnData> ChatTurns { get; set; } = [];
 }
 
 public class ChatTurnData

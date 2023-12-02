@@ -1,76 +1,25 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-
+﻿using Azure.AI.OpenAI;
 using Azure.Search.Documents;
 using BotBuilderOpenAi.Extensions;
 using BotBuilderOpenAi.Models;
 using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.Orchestration;
-using Microsoft.SemanticKernel.SkillDefinition;
+using Microsoft.SemanticKernel.AI.ChatCompletion;
+using Microsoft.SemanticKernel.Connectors.AI.OpenAI.ChatCompletion;
+using System.Text.Json;
 
 namespace BotBuilderOpenAi.Services;
 
 public class OpenAIBotService
 {
-    private readonly SearchClient _searchClient;
-
-    //private readonly AzureOpenAIChatCompletionService _completionService;
-
-    private readonly IKernel _kernel;
+    private readonly SearchClient searchClient;
     private readonly OpenAIConfig config;
+    private readonly IChatCompletion chatCompletion;
 
-    private const string FollowUpQuestionsPrompt = """
-        After answering question, also generate three very brief follow-up questions that the user would likely ask next.
-        Use double angle brackets to reference the questions, e.g. <<Are there exclusions for prescriptions?>>.
-        Try not to repeat questions that have already been asked.
-        Only generate questions and do not generate any text before or after the questions, such as 'Next Questions'
-        """;
-
-    private const string AnswerPromptTemplate = """
-        <|im_start|>system
-        You are a system assistant who helps the company employees with their healthcare plan questions, and questions about the employee handbook. Be brief in your answers.
-        Answer ONLY with the facts listed in the list of sources below. If there isn't enough information below, say you don't know. Do not generate answers that don't use the sources below.
-        {{$follow_up_questions_prompt}}
-        For tabular information return it as a markdown. Do not return html format.
-        Each source has a name followed by colon and the actual information, ALWAYS reference source for each fact you use in the response. Use square brakets to reference the source. List each source separately.
-        {{$injected_prompt}}
-
-        Here're a few examples:
-        ### Good Example 1 (include source) ###
-        Apple is a fruit[reference1.pdf].
-        ### Good Example 2 (include multiple source) ###
-        Apple is a fruit[reference1.pdf][reference2.pdf].
-        ### Good Example 2 (include source and use double angle brackets to reference question) ###
-        Microsoft is a software company[reference1.pdf].  <<followup question 1>> <<followup question 2>> <<followup question 3>>
-        ### END ###
-        Sources:
-        {{$sources}}
-
-        Chat history:
-        {{$chat_history}}
-        <|im_end|>
-        <|im_start|>user
-        {{$question}}
-        <|im_end|>
-        <|im_start|>assistant
-        """;
-
-    public OpenAIBotService(
-        SearchClient searchClient,
-        AzureOpenAIChatCompletionService completionService,
-        OpenAIConfig config)
+    public OpenAIBotService(SearchClient searchClient, OpenAIClient openAIClient, OpenAIConfig config)
     {
-        _searchClient = searchClient;
+        this.searchClient = searchClient;
         this.config = config;
-
-        //var kernelBuilder = new KernelBuilder();
-        //kernelBuilder.WithAIService<TextCompletionService>(config.ChatGptDeployment, completionService);
-        //kernelBuilder.WithAzureTextCompletionService(config.ChatGptDeployment, config.ServiceEndpoint, config.Key, config.ChatGptDeployment);.Build();
-        //_kernel.Config.AddAzureTextCompletionService(config.ChatGptDeployment, config.ServiceEndpoint, config.Key);
-
-        var kernel = Kernel.Builder.Build();
-        //kernel.Config.AddAzureTextCompletionService("davinci", config.ServiceEndpoint, config.Key);
-        kernel.Config.AddTextCompletionService(_ => completionService, config.ChatGptDeployment);
-        _kernel = kernel;
+        chatCompletion = new AzureOpenAIChatCompletion(config.ChatGptDeployment, openAIClient);
     }
 
     public async Task<Response> ReplyAsync(
@@ -84,104 +33,145 @@ public class OpenAIBotService
         var excludeCategory = overrides?.ExcludeCategory ?? null;
         var filter = excludeCategory is null ? null : $"category ne '{excludeCategory}'";
 
+        //var chat = kernel.GetService<IChatCompletion>();
+        //var embedding = kernel.GetService<ITextEmbeddingGeneration>();
+
+        float[]? embeddings = null;
+        var question = history.LastOrDefault()?.User is { } userQuestion
+            ? userQuestion : throw new InvalidOperationException("Use question is null");
+
+        //if (overrides?.RetrievalMode != "Text" && embedding is not null)
+        //{
+        //    try
+        //    {
+        //        embeddings = (await embedding.GenerateEmbeddingAsync(question, cancellationToken: cancellationToken)).ToArray();
+        //    }
+        //    catch (Exception e)
+        //    {
+        //        Console.WriteLine(e);
+        //    }
+        //}
+
         // step 1
-        // use llm to get query
-        var queryFunction = CreateQueryPromptFunction(history);
-        var context = new ContextVariables();
-        var historyText = history.GetChatHistoryAsText(includeLastTurn: true);
-        context["chat_history"] = historyText;
-        if (history.LastOrDefault()?.User is { } userQuestion)
+        // use llm to get query if retrieval mode is not vector
+        string? query = null;
+        if (overrides?.RetrievalMode != "Vector")
         {
-            context["question"] = userQuestion;
-        }
-        else
-        {
-            throw new InvalidOperationException("Use question is null");
+            var getQueryChat = chatCompletion.CreateNewChat(@"You are a helpful AI assistant, generate search query for follow up question.
+Make your respond simple and precise. Return the query only, do not return any other text.
+e.g.
+Northwind Health Plus AND standard plan.
+standard plan AND dental AND employee benefit.
+");
+
+            getQueryChat.AddUserMessage(question);
+            var result = await chatCompletion.GetChatCompletionsAsync(
+                getQueryChat,
+                cancellationToken: cancellationToken);
+
+            if (result.Count != 1)
+            {
+                throw new InvalidOperationException("Failed to get search query");
+            }
+
+            query = result[0].ModelResult.GetOpenAIChatResult().Choice.Message.Content;
         }
 
-        var query = await _kernel.RunAsync(context, cancellationToken, queryFunction);
+
         // step 2
         // use query to search related docs
-        var documentContents = await _searchClient.QueryDocumentsAsync(query.Result, overrides, cancellationToken);
+
+        SupportingContentRecord[] documentContentList = [];
+        try
+        {
+            documentContentList = await searchClient.QueryDocumentsAsync(query, null, overrides, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+        }
+
+        string documentContents = string.Empty;
+        if (documentContentList.Length == 0)
+        {
+            documentContents = "no source available.";
+        }
+        else
+        {
+            documentContents = string.Join("\r", documentContentList.Select(x => $"{x.Title}:{x.Content}"));
+        }
 
         // step 3
-        // use llm to get answer
-        var answerContext = new ContextVariables();
-        ISKFunction answerFunction;
-        string prompt;
-        answerContext["chat_history"] = history.GetChatHistoryAsText();
-        answerContext["sources"] = documentContents;
+        // put together related docs and conversation history to generate answer
+        var answerChat = chatCompletion.CreateNewChat(
+            "You are a system assistant who helps the company employees with their healthcare " +
+            "plan questions, and questions about the employee handbook. Be brief in your answers");
+
+
+        // add chat history
+        foreach (var turn in history)
+        {
+            answerChat.AddUserMessage(turn.User);
+            if (turn.Bot is { } botMessage)
+            {
+                answerChat.AddAssistantMessage(botMessage);
+            }
+        }
+
+        // format prompt
+        answerChat.AddUserMessage(@$" ## Source ##
+{documentContents}
+## End ##
+
+You answer needs to be a json object with the following format.
+{{
+    ""answer"": // the answer to the question, add a source reference to the end of each sentence. e.g. Apple is a fruit [reference1.pdf][reference2.pdf]. If no source available, put the answer as I don't know.
+    ""thoughts"": // brief thoughts on how you came up with the answer, e.g. what sources you used, what you thought about, etc.
+}}");
+
+        // get answer
+        var answer = await chatCompletion.GetChatCompletionsAsync(answerChat, cancellationToken: cancellationToken);
+        var answerJson = answer?[0].ModelResult.GetOpenAIChatResult().Choice.Message.Content ?? throw new InvalidOperationException("Failed to get answer");
+        var answerObject = JsonSerializer.Deserialize<JsonElement>(answerJson);
+        var ans = answerObject.GetProperty("answer").GetString() ?? throw new InvalidOperationException("Failed to get answer");
+        var thoughts = answerObject.GetProperty("thoughts").GetString() ?? throw new InvalidOperationException("Failed to get thoughts");
+
+        // step 4
+        // add follow up questions if requested
         if (overrides?.SuggestFollowUpQuestions is true)
         {
-            answerContext["follow_up_questions_prompt"] = FollowUpQuestionsPrompt;
-        }
-        else
-        {
-            answerContext["follow_up_questions_prompt"] = string.Empty;
+            var followUpQuestionChat = chatCompletion.CreateNewChat(@"You are a helpful AI assistant");
+            followUpQuestionChat.AddUserMessage($@"Generate three follow-up question based on the answer you just generated.
+# Answer
+{ans}
+
+# Format of the response
+Return the follow-up question as a json string list.
+e.g.
+[
+    ""What is the deductible?"",
+    ""What is the co-pay?"",
+    ""What is the out-of-pocket maximum?""
+]");
+
+            var followUpQuestions = await chatCompletion.GetChatCompletionsAsync(
+                followUpQuestionChat,
+                cancellationToken: cancellationToken);
+
+            var followUpQuestionsJson = followUpQuestions[0].ModelResult.GetOpenAIChatResult().Choice.Message.Content;
+            var followUpQuestionsObject = JsonSerializer.Deserialize<JsonElement>(followUpQuestionsJson);
+            var followUpQuestionsList = followUpQuestionsObject.EnumerateArray().Select(x => x.GetString()).ToList();
+            foreach (var followUpQuestion in followUpQuestionsList)
+            {
+                ans += $" <<{followUpQuestion}>> ";
+            }
         }
 
-        if (overrides is null or { PromptTemplate: null })
-        {
-            answerContext["$injected_prompt"] = string.Empty;
-            answerFunction = CreateAnswerPromptFunction(AnswerPromptTemplate, overrides);
-            prompt = AnswerPromptTemplate;
-        }
-        else if (overrides is not null && overrides.PromptTemplate.StartsWith(">>>"))
-        {
-            answerContext["$injected_prompt"] = overrides.PromptTemplate[3..];
-            answerFunction = CreateAnswerPromptFunction(AnswerPromptTemplate, overrides);
-            prompt = AnswerPromptTemplate;
-        }
-        else if (overrides?.PromptTemplate is string promptTemplate)
-        {
-            answerFunction = CreateAnswerPromptFunction(promptTemplate, overrides);
-            prompt = promptTemplate;
-        }
-        else
-        {
-            throw new InvalidOperationException("Failed to get search result");
-        }
-
-        var ans = await _kernel.RunAsync(answerContext, cancellationToken, answerFunction);
-        prompt = await _kernel.PromptTemplateEngine.RenderAsync(prompt, ans);
         return new Response(
-            DataPoints: documentContents.Split('\r'),
-            Answer: ans.Result,
-            Thoughts: $"Searched for:<br>{query}<br><br>Prompt:<br>{prompt.Replace("\n", "<br>")}",
+            DataPoints: documentContentList,
+            Answer: ans,
+            Thoughts: thoughts,
             CitationBaseUrl: config.ToCitationBaseUrl());
+
     }
-
-    private ISKFunction CreateQueryPromptFunction(ChatTurn[] history)
-    {
-        var queryPromptTemplate = """
-            <|im_start|>system
-            Chat history:
-            {{$chat_history}}
-            
-            Here's a few examples of good search queries:
-            ### Good example 1 ###
-            Northwind Health Plus AND standard plan
-            ### Good example 2 ###
-            standard plan AND dental AND employee benefit
-            ###
-
-            <|im_end|>
-            <|im_start|>system
-            Generate search query for followup question. You can refer to chat history for context information. Just return search query and don't include any other information.
-            {{$question}}
-            <|im_end|>
-            <|im_start|>assistant
-            """;
-
-        return _kernel.CreateSemanticFunction(queryPromptTemplate,
-            temperature: 0,
-            maxTokens: 32,
-            stopSequences: new[] { "<|im_end|>" });
-    }
-
-    private ISKFunction CreateAnswerPromptFunction(string answerTemplate, RequestOverrides? overrides) =>
-        _kernel.CreateSemanticFunction(answerTemplate,
-            temperature: overrides?.Temperature ?? 0.7,
-            maxTokens: 1024,
-            stopSequences: new[] { "<|im_end|>" });
 }

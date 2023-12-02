@@ -3,7 +3,6 @@ using Azure.AI.OpenAI;
 using Azure.Identity;
 using Azure.Search.Documents;
 using BotBuilderOpenAi;
-using BotBuilderOpenAi.Services;
 using GptBotApi;
 using GptBotApi.Bot;
 using GptBotApi.Dialogs;
@@ -71,7 +70,6 @@ builder.Services.AddSingleton(sp =>
     return openAIClient;
 });
 
-builder.Services.AddSingleton<AzureOpenAIChatCompletionService>();
 builder.Services.AddSingleton<IChatService, ChatService>();
 
 

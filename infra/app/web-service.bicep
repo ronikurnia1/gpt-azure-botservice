@@ -32,7 +32,7 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
     properties: {
         serverFarmId: appServicePlan.id
         siteConfig: {
-            linuxFxVersion: 'DOTNETCORE|7.0'
+            linuxFxVersion: 'DOTNETCORE|8.0'
             appSettings: [
                 {
                     name: 'AzureOpenAIConfig__ServiceEndpoint'
@@ -57,6 +57,10 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
                 {
                     name: 'AzureOpenAIConfig__AzureSearchIndex'
                     value: openAIAzureSearchIndex
+                }
+                {
+                    name: 'AzureOpenAIConfig__EmbeddingDeployment'
+                    value: 'embedding'
                 }
                 {
                     name: 'MicrosoftAppId'

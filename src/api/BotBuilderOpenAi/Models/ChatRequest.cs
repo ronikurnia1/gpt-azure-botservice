@@ -1,6 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-
-namespace BotBuilderOpenAi.Models;
+﻿namespace BotBuilderOpenAi.Models;
 
 public record class ChatRequest(ChatTurn[] History, RequestOverrides? Overrides = null)
 {

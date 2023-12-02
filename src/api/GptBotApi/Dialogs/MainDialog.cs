@@ -36,7 +36,7 @@ public class MainDialog : ComponentDialog
 
         var history = conversationData.ChatTurns.Select(x => new ChatTurn(x.User, x.Bot)).ToList();
         history.Add(new ChatTurn(stepContext.Context.Activity.Text));
-        var request = new ChatRequest(history.ToArray(), new RequestOverrides());
+        var request = new ChatRequest([.. history], new RequestOverrides());
 
         var response = await chatService.GetResponse(request);
 

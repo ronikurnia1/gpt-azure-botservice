@@ -1,17 +1,15 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-
-using Azure.Search.Documents;
+﻿using Azure.Search.Documents;
 using Azure.Search.Documents.Models;
 using BotBuilderOpenAi.Models;
-using System.Text;
 
 namespace BotBuilderOpenAi.Extensions;
 
 internal static class SearchClientExtensions
 {
-    internal static async Task<string> QueryDocumentsAsync(
+    internal static async Task<SupportingContentRecord[]> QueryDocumentsAsync(
         this SearchClient searchClient,
-        string query,
+        string? query = null,
+        float[]? embedding = null,
         RequestOverrides? overrides = null,
         CancellationToken cancellationToken = default)
     {
@@ -27,11 +25,13 @@ internal static class SearchClientExtensions
             {
                 Filter = filter,
                 QueryType = SearchQueryType.Semantic,
-                QueryLanguage = "en-us",
-                QuerySpeller = "lexicon",
-                SemanticConfigurationName = "default",
+                SemanticSearch = new SemanticSearchOptions
+                {
+                    SemanticConfigurationName = "default",
+                    QueryCaption = useSemanticCaptions ? new QueryCaption(QueryCaptionType.Extractive)
+                    : new QueryCaption(QueryCaptionType.None)
+                },
                 Size = top,
-                QueryCaption = useSemanticCaptions ? QueryCaptionType.Extractive : QueryCaptionType.None,
             }
             : new SearchOptions
             {
@@ -39,7 +39,21 @@ internal static class SearchClientExtensions
                 Size = top,
             };
 
-        var searchResultResponse = await searchClient.SearchAsync<SearchDocument>(query, searchOption, cancellationToken);
+        if (embedding != null && overrides?.RetrievalMode != "Text")
+        {
+            var k = useSemanticRanker ? 50 : top;
+            var vectorQuery = new VectorizedQuery(embedding)
+            {
+                // if semantic ranker is enabled, we need to set the rank to a large number to get more
+                // candidates for semantic reranking
+                KNearestNeighborsCount = useSemanticRanker ? 50 : top
+            };
+            vectorQuery.Fields.Add("embedding");
+            searchOption.VectorSearch.Queries.Add(vectorQuery);
+        }
+
+        var searchResultResponse = await searchClient.SearchAsync<SearchDocument>(
+            query, searchOption, cancellationToken);
         if (searchResultResponse.Value is null)
         {
             throw new InvalidOperationException("fail to get search result");
@@ -57,7 +71,7 @@ internal static class SearchClientExtensions
         //   "sourcepage": "Northwind_Standard_Benefits_Details-24.pdf",
         //   "sourcefile": "Northwind_Standard_Benefits_Details.pdf"
         // }
-        var sb = new StringBuilder();
+        var sb = new List<SupportingContentRecord>();
         foreach (var doc in searchResult.GetResults())
         {
             doc.Document.TryGetValue("sourcepage", out var sourcePageValue);
@@ -66,7 +80,7 @@ internal static class SearchClientExtensions
             {
                 if (useSemanticCaptions)
                 {
-                    var docs = doc.Captions.Select(c => c.Text);
+                    var docs = doc.Highlights.Select(c => c.Value);
                     contentValue = string.Join(" . ", docs);
                 }
                 else
@@ -83,58 +97,10 @@ internal static class SearchClientExtensions
             if (sourcePageValue is string sourcePage && contentValue is string content)
             {
                 content = content.Replace('\r', ' ').Replace('\n', ' ');
-                sb.AppendLine($"{sourcePage}:{content}");
+                sb.Add(new SupportingContentRecord(sourcePage, content));
             }
         }
-        documentContents = sb.ToString();
 
-        return documentContents;
-    }
-
-    internal static async Task<string> LookupAsync(
-        this SearchClient searchClient,
-        string query,
-        RequestOverrides? overrides = null)
-    {
-        var option = new SearchOptions
-        {
-            Size = 1,
-            IncludeTotalCount = true,
-            QueryType = SearchQueryType.Semantic,
-            QueryLanguage = "en-us",
-            QuerySpeller = "lexicon",
-            SemanticConfigurationName = "default",
-            QueryAnswer = "extractive",
-            QueryCaption = "extractive",
-        };
-
-        var searchResultResponse = await searchClient.SearchAsync<SearchDocument>(query, option);
-        if (searchResultResponse.Value is null)
-        {
-            throw new InvalidOperationException("fail to get search result");
-        }
-
-        var searchResult = searchResultResponse.Value;
-        if (searchResult is { Answers.Count: > 0 })
-        {
-            return searchResult.Answers[0].Text;
-        }
-
-        if (searchResult.TotalCount > 0)
-        {
-            var contents = new List<string>();
-            await foreach (var doc in searchResult.GetResultsAsync())
-            {
-                doc.Document.TryGetValue("content", out var contentValue);
-                if (contentValue is string content)
-                {
-                    contents.Add(content);
-                }
-            }
-
-            return string.Join("\n", contents);
-        }
-
-        return string.Empty;
+        return [.. sb];
     }
 }

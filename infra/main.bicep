@@ -31,6 +31,9 @@ param formRecognizerResourceGroupName string = ''
 param chatGptDeploymentName string = 'chat'
 param chatGptModelName string = 'gpt-35-turbo'
 
+param embedDeploymentName string = 'embedding'
+param embedModelName string = 'text-embedding-ada-002'
+
 var abbrs = loadJsonContent('./abbreviations.json')
 var suffix = take(toLower(uniqueString(environmentName, subscription().id, location)), 4)
 
@@ -117,6 +120,8 @@ module openAi 'core/ai/cognitive-service.bicep' = {
         skuName: openAiSkuName
         chatGptDeploymentName: chatGptDeploymentName
         chatGptModelName: chatGptModelName
+        embedDeploymentName: embedDeploymentName
+        embedModelName: embedModelName
     }
 }
 
@@ -273,6 +278,7 @@ output AZURE_OPENAI_SERVICE string = openAi.outputs.name
 output AZURE_OPENAI_ENDPOINT string = openAi.outputs.endpoint
 output AZURE_OPENAI_RESOURCE_GROUP string = openAiResourceGroup.name
 output AZURE_OPENAI_CHATGPT_DEPLOYMENT string = chatGptDeploymentName
+output AZURE_OPENAI_EMBED_DEPLOYMENT string = embedDeploymentName
 
 output AZURE_FORMRECOGNIZER_SERVICE string = openAi.outputs.formRecognizerName
 output AZURE_FORMRECOGNIZER_SERVICE_ENDPOINT string = openAi.outputs.formRecognizerEndpoint

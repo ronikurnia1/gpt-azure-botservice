@@ -1,6 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-
-namespace BotBuilderOpenAi.Extensions;
+﻿namespace BotBuilderOpenAi.Extensions;
 
 internal static class OpenAIConfigExtensions
 {

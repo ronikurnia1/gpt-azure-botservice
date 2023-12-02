@@ -1,6 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-
-using BotBuilderOpenAi.Models;
+﻿using BotBuilderOpenAi.Models;
 
 namespace BotBuilderOpenAi.Extensions;
 

@@ -1,10 +1,10 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+﻿namespace BotBuilderOpenAi.Models;
 
-namespace BotBuilderOpenAi.Models;
+public record SupportingContentRecord(string Title, string Content);
 
 public record Response(
     string Answer,
     string? Thoughts,
-    string[] DataPoints,
+    SupportingContentRecord[] DataPoints,
     string CitationBaseUrl,
     string? Error = null);
